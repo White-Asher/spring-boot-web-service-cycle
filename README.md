@@ -1,5 +1,10 @@
 해당 REPO는 [스프링 부트와 AWS로 혼자 구현하는 웹 서비스](http://www.yes24.com/Product/Goods/83849117) 교재를 바탕으로 공부하였습니다.
 
+## 환경
+- Java 8
+- Gradle 4.x
+- Spring Boot 2.1.x
+
 # TDD 
 테스트가 주도하는 개발
 - 항상 실패하는 테스트를 먼저 작성 (Red)
@@ -25,7 +30,7 @@
 기존 기능이 잘 작동되는 것을 보장하게 해준다.
 -> 자바의 테스트 프레임워크 => JUnit (해당 교재에서는 JUnit4사용)
 
-# 2 test-code
+# 2 Gradle -> Spring-boot
 
 ## Application
 
@@ -143,3 +148,179 @@ public class HelloControllerTest {
 
 ## 롬복
 Project setting -> Build, Execution -> compiler -> annotation Processor -> Check! Enable annotation proecess
+
+### HelloResponseDto
+
+```java
+package com.asher.book.springboot.web.dto;
+
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+
+@Getter // 1
+@RequiredArgsConstructor // 2
+public class HelloResponseDto {
+    private final String name;
+    private final int amount;
+}
+```
+
+### (1) @Getter
+- 선언된 모든 필드의 get메서드를 생성
+
+### (2) @RequiredArgsConstructor
+- 선언된 모든 final 필드가 포함된 생성자를 생성해 줍니다.
+- final이 없는 필드는 생성자에 포함되지 않습니다.
+
+### HelloResponseDto test-code
+```java
+package com.asher.book.springboot.web.dto;
+
+import org.junit.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+public class HelloResponseDtoTest {
+
+    @Test
+    public void 롬복_기능_테스트(){
+        //given
+        String name = "test";
+        int amount = 1000;
+
+        //when
+        HelloResponseDto dto = new HelloResponseDto(name, amount);
+
+        //then
+        assertThat(dto.getName()).isEqualTo(name); // 1, 2
+        assertThat(dto.getAmount()).isEqualTo(amount);
+    }
+}
+```
+### (1) assertThat
+- assertj라는 테스트 검증 라이브러리의 검증 메서드 입니다.
+- 검증하고 싶은 대상을 메서드 인자로 받습니다.
+- 메서드 체이닝이 지원되어 isEqualTo와 같이 메서드를 이어서 사용할 수 있습니다. 
+
+### (2) isEqualTo
+- assertj의 동등 비교 메서드 입니다.
+- assertThat에 있는 값과 isEqualTo의 값을 비교해서 같을 때만 성공입니다. 
+
+```java
+@GetMapping("/hello/dto")
+public HelloResponseDto helloDto(@RequestParam("name") String name, @RequestParam("amount") int amount) { // 1
+    return new HelloResponseDto(name, amount);
+}
+```
+### (1) RequestParam
+- 외부에서 API로 넘긴 파라미터를 가져오는 어노테이션
+- 여기서는 외부에서 name(@RequestParam("name"))이란 이름으로 넘긴 파라미터를 메소드 파라미터 name(String name)에 저장하게 된다.
+
+```java
+@Test
+public void helloDto가_리턴된다() throws Exception {
+    String name = "hello";
+    int amount = 1000;
+
+    mvc.perform(
+            get("/hello/dto")
+                    .param("name", name) // 1
+                    .param("amount", String.valueOf(amount)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.name", is(name))) //2
+                    .andExpect(jsonPath("$.amount", is(amount)));
+}
+```
+### (1) param
+- API테스트할 때 사용될 요청 파라미터를 설정
+- 단, 값은 String만 허용
+- 그래서 숫자/날짜 등의 데이터도 등록할 때는 문자열로 변경해야만 가능
+
+### (2) jsonPath
+- JSON응답값을 필드별로 검증할 수 잇는 메서드
+- $를 기준으로 필드명을 명시
+- 여기서는 name과 amount를 검증하니 $.name, $.amount로 검증
+
+# Spring-boot + JPA
+
+## JPA?
+-> 지향하는 바가 다른 2개영역(객체지향 프로그래밍 언어와 관계형 데이터베이스)을 
+중간에서 패러다임 일치를 시켜주기 위한 기술
+
+```
+// 1
+implementation('org.springframework.boot:spring-boot-starter-data-jpa')
+// 2 
+implementation('com.h2database:h2')
+```
+
+### (1) spring-boot-starter-data-jpa
+- 스프링 부트용 Spring Data jpa 추상화 라이브러리
+- 스프링 부트 버전에 맞춰 자동으로 JPA관련 라이브러리들의 버전으 ㄹ관리
+
+### (2) h2
+- 인메모리 관계형 데이터베이스
+- 별도의 설치가 필요 없이 프로젝트 의존성만으로 관리할 수 있음
+- 메모리에서 실행되기 때문에 애플리케이션을 재시작 할 때마다 초기화 된다는 점을 이용하여 테스트용도로 많이 사용
+
+```java
+package com.asher.book.springboot.domain.posts;
+
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
+import javax.persistence.*;
+
+@Getter // 6
+@NoArgsConstructor // 5
+@Entity // 1
+public class Posts {
+    @Id // 2
+    @GeneratedValue(strategy = GenerationType.IDENTITY) // 3
+    private Long id;
+
+    @Column(length = 500, nullable = false) // 4
+    private String title;
+
+    @Column(columnDefinition = "TEXT", nullable = false)
+    private String content;
+
+    private String author;
+
+    @Builder // 7
+    public Posts(String title, String content, String author){
+        this.title = title;
+        this.content = content;
+        this.author = author;
+    }
+}
+```
+
+### (1) @Entity
+- 테이블과 링크될 클래스를 나타냄
+- 기본값으로 클래스의 카멜케이스 이름을 언더스코어 네이밍으로 테이블 이름을 매칭
+- Ex) SalesManager.java -> sales_manager table
+
+### (2) @Id
+- 해당 테이블의 PK필드를 나타냅니다.
+
+### (3) @GeneratedValue
+- PK의 생성 규칙을 나타냄
+- 스프링 부트 2.0에서는 GenerationType.IDENTITY옵션을 추가해야만 auto_increment가 된다
+
+### (4) @Column
+- 테이블의 칼럼을 나타내며 선언하지 않더라도 해당 클래스의 필드는 모두 컬럼이 된다.
+- 사용하는 이유는, 기본값 외에 추가로 변경이 필요한 옵션이 있으면 사용함
+- 문자열 경우 VARCHAR(255)가 기본값, 사이즈를 500으로 늘리고 싶거나(ex.title), 타입을 TEXT로 변경하고 싶거나 (ex:content)등의 경우에 사용함.
+
+### (5) @NoArgsConstructor
+- 기본 생성자 자동 추가
+- public Posts() {}와 같은 효과
+
+### (6) @Getter
+- 클래스 내 모든 필드의 Getter메서드를 자동생성
+
+### (7) @Builder
+- 해당 클래스의 빌더 패턴 클래스를 생성
+- 생성자 상단에 선언시 생성자에 포함된 필드만 빌더에 포함
