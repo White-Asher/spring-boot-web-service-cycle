@@ -30,7 +30,7 @@
 기존 기능이 잘 작동되는 것을 보장하게 해준다.
 -> 자바의 테스트 프레임워크 => JUnit (해당 교재에서는 JUnit4사용)
 
-# 2 Gradle -> Spring-boot
+# 2. Gradle -> Spring-boot
 
 ## Application
 
@@ -241,7 +241,7 @@ public void helloDto가_리턴된다() throws Exception {
 - $를 기준으로 필드명을 명시
 - 여기서는 name과 amount를 검증하니 $.name, $.amount로 검증
 
-# Spring-boot + JPA
+# 3. Spring-boot + JPA
 
 ## JPA?
 -> 지향하는 바가 다른 2개영역(객체지향 프로그래밍 언어와 관계형 데이터베이스)을 
@@ -256,7 +256,7 @@ implementation('com.h2database:h2')
 
 ### (1) spring-boot-starter-data-jpa
 - 스프링 부트용 Spring Data jpa 추상화 라이브러리
-- 스프링 부트 버전에 맞춰 자동으로 JPA관련 라이브러리들의 버전으 ㄹ관리
+- 스프링 부트 버전에 맞춰 자동으로 JPA관련 라이브러리들의 버전을 관리
 
 ### (2) h2
 - 인메모리 관계형 데이터베이스
@@ -297,6 +297,14 @@ public class Posts {
 }
 ```
 
+- 저자는 어노테이션 순서를 주요 어노테이션 클래스에 가깝게 둔다
+- @Entity는 JPA의 어노테이션 이며, @Getter와 @NoArgsConstructor는 롬복의 어노테이션임
+- 롬복은 코드를 단순화 시켜주지만 필수 어노테이션이 아니므로 주오 어노테이션인 @Entity를 클래스에 가깝게 두고 롬복 어노테이션을 그 위에 선언함
+- 이렇게 하면 새 언어로 전환할 때 필요없는 어노테이션인 경우 쉽게 삭제가 가능하다. 
+- **여기서 Posts클래스는 실제 DB의 테이블과 매칭될 클래스이며 보통 Entity클래스 라고 한다.**
+- JPA를 사용하면 DB데이터에 작업할 경우 실제 쿼리를 날리는 것 보다, Entity클래스의 수정을 통해 작업함.
+
+
 ### (1) @Entity
 - 테이블과 링크될 클래스를 나타냄
 - 기본값으로 클래스의 카멜케이스 이름을 언더스코어 네이밍으로 테이블 이름을 매칭
@@ -324,3 +332,46 @@ public class Posts {
 ### (7) @Builder
 - 해당 클래스의 빌더 패턴 클래스를 생성
 - 생성자 상단에 선언시 생성자에 포함된 필드만 빌더에 포함
+
+### Tip
+- Entity의 PK는 Long타입의 Auto_increment를 추천함 (Mysql기준 bigint 타입이 됨)
+- 주민등록번호와 같이 비즈니스상 유니크 키나, 여러 키를 조합한 복합키로 PK를 잡을 경우 난감한 상황이 발생됨
+1. FK를 맺을 때 다른 테이블에서 복합키 전부를 갖고 있거나, 중간 테이블을 하나 더 둬야 하는 상황 발생
+2. 인덱스에 좋은 영향을 끼치지 못함
+3. 유니크한 조건이 변경될 경우 PK 전체를 수정해야 하는 일이 발생함.
+4. 주민번호, 복합키 등은 유니크 키로 별도로 추가하는 것이 좋음.
+
+<br/>
+
+- Posts클래스에 특이점이 있는데 setter메서드가 없다.
+- 자바빈 규약을 생각하면서 getter/setter를 무작정 생성하는 경우가 있는데 이렇게 되면 해당 클래스의 인스턴스 값들이 언제 어디서 변해야 하는지 코드상으로 명확히 구분할 수 없어, 차후 변경시 복잡해진다.
+- 그래서 Entity클래스에서는 절대 setter메서드를 만들지 않는다. 
+- 대신, 해당 필드의 값 변경이 필요하면 명확히 그 목적과 의도를 나타낼 수 있는 메서드를 추가해야한다. 
+
+- 예를들어 주문 취소 메서드를 만든다고 가정하고 예시를 살펴보자.
+
+잘못된 사용 예시
+```java
+public class Order{
+    public void setStatus(boolean status){
+        this.status = status;
+    }
+}
+
+public void 주문서비스의_취소이벤트 () {
+    order.setStatus(false);
+}
+```
+올바른 사용 예시
+```java
+public class Order{
+    public void cancelOrder(){
+        this.status = false;
+    }
+}
+
+public void 주문서비스의_취소이벤트 () {
+    order.cancelOrder();
+}
+```
+
