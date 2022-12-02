@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 
 import javax.persistence.*;
 
+
 @Getter // 6
 @NoArgsConstructor // 5
 @Entity // 1
@@ -28,4 +29,5 @@ public class Posts {
         this.content = content;
         this.author = author;
     }
+
 }
