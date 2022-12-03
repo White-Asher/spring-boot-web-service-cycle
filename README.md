@@ -562,3 +562,47 @@ public Order cancelOrer(int orderId) {
 }
 ```
 트랜잭션과 도메인 간 순서만 보장함.
+
+- 스프링에서 Bean을 주입받는 방식은 Autowired, setter, 생성자 3가지 방식이 있다.
+- 생성자로 주입받는방식을 권하며(@Autowired사용을 권장하지 않음) 생성자로 Bean객체를 받도록 하면 @Autowired와 동일한 효과를 볼 수 있다.
+- @RequiredArgsConstructor가 final이 선언된 모든 필드를 인자값으로 하는 생성자를 롬복의 @RequiredArgsConstructor가 대신 생성해 준다.
+- 생성자를 안쓰고 롬복 어노테이션을 사용한 이유는 해당 클래스의 의존성 관계가 변경될 때마다 생성자 코드를 계속해서 수정해야하는 번거로움이 있기 때문.
+
+```java
+import com.asher.book.springboot.domain.posts.Posts;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
+@Getter
+@NoArgsConstructor
+public class PostsSaveRequestDto {
+    private String title;
+    private String content;
+    private String author;
+
+    @Builder
+    public PostsSaveRequestDto(String title, String content, String author){
+        this.title = title;
+        this.content = content;
+        this.author = author;
+    }
+    
+    public Posts toEntity(){
+        return Posts.builder()
+                .title(title)
+                .content(content)
+                .author(author)
+                .build();
+    }
+}
+```
+
+- 여기서 Entity클래스와 거의 유사한 형태임에도 Dto클래스를 추가로 생성함.
+- 하지만, 절대로 Entity클래스를 Request/Response클래스로 사용해서는 안된다.
+- Entity클래스는 DB와 맞닿은 핵심 클래스이며, Entity클래스를 기준으로 테이블이 생성되고, 스키마가 변경된다. 
+- 화면 변경은 사소한 기능변경인데, 이를 위해 테이블과 연결된 Entity 클래스를 변경하는 것은 너무 큰 변경임
+- 수많은 서비스 클래스나 비즈니스 로직들이 Entity 클래스를 기준으로 동작함
+- Entity클래스가 변경되면 여러 클래스에 영향을 끼치지만, Request와 Response용 Dto는 View를 위한 클래스라 정말 자주 변경이 필요함
+- 그러므로 View Layer와 DB Layer의 역할 분리를 철저하게 하는 것이 좋다. 
+- 
